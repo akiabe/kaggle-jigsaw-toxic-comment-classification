@@ -3,15 +3,16 @@ import pandas as pd
 import tensorflow as tf
 from sklearn import metrics
 
+import models
+
 def run(fold):
     df = pd.read_csv("../input/train_folds.csv")
     train_df = df[df.kfold != fold].reset_index(drop=True)
     valid_df = df[df.kfold == fold].reset_index(drop=True)
 
     print("fitting tokenizer...")
-
-    VOCAB_SIZE = 10000
-    EMBEDDING_DIM = 16
+    VOCAB_SIZE = 256
+    EMBEDDING_DIM = 512
     MAX_LEN = 128
     TRUNCATING = "post"
     OOV_TOKEN = "<OOV>"
@@ -40,16 +41,8 @@ def run(fold):
     valid_y = valid_df.toxic.values
 
     print("loading model...")
-    model = tf.keras.Sequential([
-        tf.keras.layers.Embedding(
-            VOCAB_SIZE,
-            EMBEDDING_DIM,
-            input_length=MAX_LEN
-        ),
-        tf.keras.layers.Flatten(),
-        tf.keras.layers.Dense(6,activation="relu"),
-        tf.keras.layers.Dense(1,activation="sigmoid")
-    ])
+
+    model = models.baseline_model(VOCAB_SIZE, EMBEDDING_DIM, MAX_LEN)
 
     model.compile(
         loss="binary_crossentropy",
@@ -58,21 +51,16 @@ def run(fold):
     )
 
     print("training model...")
-    EPOCHS = 10
+
+    EPOCHS = 3
     model.fit(
         train_x,
         train_y,
-        validation_data=(valid_x,valid_y),
+        validation_data=(valid_x, valid_y),
         verbose=1,
         epochs=EPOCHS
     )
 
-    valid_preds = model.predict(valid_x)
-    valid_preds = np.array(valid_preds) >= 0.5
-    accuracy = metrics.accuracy_score(valid_y, valid_preds)
-    print(f"Accuracy Score = {accuracy}")
-
 if __name__ == "__main__":
-    run(fold=0)
-    run(fold=1)
-    run(fold=2)
+    for fold_ in range(3):
+        run(fold_)
